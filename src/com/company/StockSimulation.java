@@ -194,10 +194,12 @@ public class StockSimulation {
 
     public static void main(String[] args) {
 
+        int SimTime = 1;
+
         ArrayList <Product> product = new ArrayList <> ();
 
         while(true){
-            System.out.printf("Enter product file = ");
+            System.out.printf("%s > Enter product file = ", Thread.currentThread().getName());
             Scanner file = new Scanner(System.in);
             String proFile = file.next();
             try{
@@ -211,5 +213,57 @@ public class StockSimulation {
                 System.out.println(e);
             }
         }
+
+        while(true){
+            System.out.printf("%s > Enter transaction file for vendor 1 = ", Thread.currentThread().getName());
+            Scanner trans1 = new Scanner(System.in);
+            String file1 = trans1.next();
+            try{
+                Scanner scan = new Scanner(new File(file1));
+                while(scan.hasNextLine()){
+                    String nm = scan.nextLine();
+                    product.add(new Product(nm));
+                }
+                break;
+            } catch (FileNotFoundException e) {
+                System.out.println(e);
+            }
+        }
+
+        while(true){
+            System.out.printf("%s > Enter transaction file for vendor 2 = ", Thread.currentThread().getName());
+            Scanner trans2 = new Scanner(System.in);
+            String file2 = trans2.next();
+            try{
+                Scanner scan = new Scanner(new File(file2));
+                while(scan.hasNextLine()){
+                    String nm = scan.nextLine();
+                    product.add(new Product(nm));
+                }
+                break;
+            } catch (FileNotFoundException e) {
+                System.out.println(e);
+            }
+        }
+
+        while(true){
+            System.out.printf("%s > Enter transaction file for vendor 3 = ", Thread.currentThread().getName());
+            Scanner trans3 = new Scanner(System.in);
+            String file3 = trans3.next();
+            try{
+                Scanner scan = new Scanner(new File(file3));
+                while(scan.hasNextLine()){
+                    String nm = scan.nextLine();
+                    product.add(new Product(nm));
+                }
+                break;
+            } catch (FileNotFoundException e) {
+                System.out.println(e);
+            }
+        }
+
+        System.out.printf("%s > ------------------------------\n", Thread.currentThread().getName());
+        System.out.printf("%s > %10S (%d)\n", Thread.currentThread().getName(), "Stock Simulation", SimTime);
+        System.out.printf("%s > ------------------------------\n", Thread.currentThread().getName());
     }
 }
