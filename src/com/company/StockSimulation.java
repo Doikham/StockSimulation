@@ -115,7 +115,7 @@ class Account {
         return balance;
     }
 } // end Account
-public class Main {
+public class StockSimulation {
 
     public static void main(String[] args) {
 
