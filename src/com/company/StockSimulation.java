@@ -263,7 +263,7 @@ public class StockSimulation {
         }
 
         System.out.printf("%s > ------------------------------\n", Thread.currentThread().getName());
-        System.out.printf("%s > %10S (%d)\n", Thread.currentThread().getName(), "Stock Simulation", SimTime);
+        System.out.printf("%s >      %S (%d)\n", Thread.currentThread().getName(), "Stock Simulation", SimTime);
         System.out.printf("%s > ------------------------------\n", Thread.currentThread().getName());
     }
 }
