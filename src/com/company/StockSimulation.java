@@ -17,43 +17,63 @@ class Product {
     }
     synchronized public void addToStock(String nme, int value, int n){
         balance += value;
-        System.out.printf("%s > trans   %-3d   +%d  %-20s  balance =     " +
-                "%-5d", Thread.currentThread().getName(), n, value, nme, balance);
+        System.out.printf("%s > trans   %-3d   +%d  %-20s  balance =  %-5d", Thread.currentThread().getName(), n, value, nme, balance);
     }
     synchronized public void removeFromStock (){
 
     }
 }
 
+class Transaction{
+    int trans_id;
+    String product_name;
+    int product_amount;
+    public Transaction(int id, String name, int amount){
+        trans_id = id;
+        product_name = name;
+        product_amount = amount;
+    }
+    boolean same_product(String name){
+        if(product_name==name)return true;
+        else return false;
+    }
+    public void print_transaction(){
+        System.out.println(Thread.currentThread().getName()+trans_id+" "+product_name+" "+product_amount);
+    }
+}
+
 class VendorThread extends Thread{
-    private String productName;
-    private int numTransaction;
-    private int productValue;
-    private Product product;
-    private int total;
-    public VendorThread(int a, String b, int c, Product d){
-        numTransaction = a;
-        productName = b;
-        productValue = c;
-        product = d;
+    ArrayList <Product> allStocks = new ArrayList <> ();
+    ArrayList <Transaction> transactions = new ArrayList <> ();
+
+    public VendorThread(String vendor_name){
+        super(vendor_name);
+    }
+    public void add_transaction(Transaction new_trans){
+        transactions.add(new_trans);
+    }
+    public void show_transactions(){
+        for(int i=0;i<transactions.size();i++){
+            transactions.get(i).print_transaction();
+        }
     }
     public void run(){
-        ArrayList <Product> allStocks = new ArrayList <> ();
-        try{
-            if (productValue > 0){
-                synchronized (this){
-                    product.addToStock(this.getName(),productValue,numTransaction);
-                    //allStocks.add(this.productName,productValue);
-                    total += productValue;
-                    Thread.sleep(5);
-                }
-            } else {
-
-            }
-        }
-        catch (Exception e){
-            System.out.println(e);
-        }
+//        for(int i=0;i<transactions.size();i++) {
+//            try {
+//                if (transactions.get(i).product_amount > 0) {
+//                    synchronized (this) {
+//                        product.addToStock(this.getName(), productValue, numTransaction);
+//                        //allStocks.add(this.productName,productValue);
+//                        total += productValue;
+//                        Thread.sleep(5);
+//                    }
+//                } else {
+//
+//                }
+//            } catch (Exception e) {
+//                System.out.println(e);
+//            }
+//        }
     }
 }
 
@@ -64,10 +84,10 @@ public class StockSimulation {
         int SimTime = 1;
         int initial = 0;
 
-        ArrayList <Product> product = new ArrayList <> ();
-        ArrayList <VendorThread>  trans = new ArrayList <> ();
+        ArrayList <Product> products = new ArrayList <> ();
+        VendorThread vendors[] = new VendorThread[3];
         Product pr = new Product(initial);
-
+        //read product file
         while(true){
             System.out.printf("%s > Enter product file = ", Thread.currentThread().getName());
             Scanner file = new Scanner(System.in);
@@ -76,86 +96,41 @@ public class StockSimulation {
                 Scanner scan = new Scanner(new File(proFile));
                 while(scan.hasNextLine()){
                     String nam = scan.nextLine();
-                    product.add(new Product(nam));
+                    products.add(new Product(nam));
                 }
                 break;
             } catch (FileNotFoundException e) {
                 System.out.println(e);
             }
         }
-
-        while(true){
-            System.out.printf("%s > Enter transaction file for vendor 1 = ", Thread.currentThread().getName());
-            Scanner in1 = new Scanner(System.in);
-            String file1 = in1.next();
-            try{
-                Scanner scan = new Scanner(new File(file1));
-                while(scan.hasNextLine()){
-                    String line = scan.nextLine();
-                    String [] buffer = line.split(",");
-                    try{
-                        int numTrans = Integer.parseInt(buffer[0].trim());
-                        String nm = buffer[1].trim();
-                        int value = Integer.parseInt(buffer[2].trim());
-                        trans.add(new VendorThread(numTrans,nm,value,pr));
+        //read transaction file to each vendor
+        for(int i=0;i<3;i++){
+            //create vendor
+            vendors[i] = new VendorThread("v"+(i+1));
+            while(true){
+                System.out.printf("%s > Enter transaction file for vendor %d = ", Thread.currentThread().getName(),i+1);
+                Scanner in1 = new Scanner(System.in);
+                String file1 = in1.next();
+                try{
+                    //read each transaction
+                    Scanner scan = new Scanner(new File(file1));
+                    while(scan.hasNextLine()){
+                        String line = scan.nextLine();
+                        String [] buffer = line.split(",");
+                        try{
+                            int numTrans = Integer.parseInt(buffer[0].trim());
+                            String nm = buffer[1].trim();
+                            int value = Integer.parseInt(buffer[2].trim());
+                            vendors[i].add_transaction(new Transaction(numTrans,nm,value));
+                        }
+                        catch (RuntimeException e){
+                            System.out.println(e);
+                        }
                     }
-                    catch (RuntimeException e){
-                        System.out.println(e);
-                    }
+                    break;
+                } catch (FileNotFoundException e) {
+                    System.out.println(e);
                 }
-                break;
-            } catch (FileNotFoundException e) {
-                System.out.println(e);
-            }
-        }
-
-        while(true){
-            System.out.printf("%s > Enter transaction file for vendor 2 = ", Thread.currentThread().getName());
-            Scanner in2 = new Scanner(System.in);
-            String file2 = in2.next();
-            try{
-                Scanner scan = new Scanner(new File(file2));
-                while(scan.hasNextLine()){
-                    String line = scan.nextLine();
-                    String [] buffer = line.split(",");
-                    try{
-                        int numTrans = Integer.parseInt(buffer[0].trim());
-                        String nm = buffer[1].trim();
-                        int value = Integer.parseInt(buffer[2].trim());
-                        trans.add(new VendorThread(numTrans,nm,value,pr));
-                    }
-                    catch (RuntimeException e){
-                        System.out.println(e);
-                    }
-                }
-                break;
-            } catch (FileNotFoundException e) {
-                System.out.println(e);
-            }
-        }
-
-        while(true){
-            System.out.printf("%s > Enter transaction file for vendor 3 = ", Thread.currentThread().getName());
-            Scanner in3 = new Scanner(System.in);
-            String file3 = in3.next();
-            try{
-                Scanner scan = new Scanner(new File(file3));
-                while(scan.hasNextLine()){
-                    String line = scan.nextLine();
-                    String [] buffer = line.split(",");
-                    try{
-                        int numTrans = Integer.parseInt(buffer[0].trim());
-                        String nm = buffer[1].trim();
-                        int value = Integer.parseInt(buffer[2].trim());
-                        trans.add(new VendorThread(numTrans,nm,value,pr));
-                    }
-                    catch (RuntimeException e){
-                        System.out.println(e);
-                    }
-                }
-                break;
-            } catch (FileNotFoundException e) {
-                System.out.println(e);
             }
         }
 
@@ -164,12 +139,14 @@ public class StockSimulation {
         System.out.printf("%s > ------------------------------\n", Thread.currentThread().getName());
 
         for (int i = 0; i < 3; i++) {
-            trans.get(i).start();
+            //trans.get(i).start();
+            vendors[i].show_transactions();
         }
 
         try {
             for (int i = 0; i < 3; i++) {
-                trans.get(i).join();
+//                trans.get(i).join();
+                vendors[i].join();
             }
         }
 
