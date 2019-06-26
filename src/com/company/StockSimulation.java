@@ -11,16 +11,16 @@ import java.util.concurrent.CyclicBarrier;
 class Product {
     private String name;
     private int balance;
+    private int summary;
     public Product (String n){
         name = n;
     }
     public Product (int g){
         balance = g;
     }
-    synchronized public int addToStock(int value, int transaction_no){
+    synchronized public void addToStock(int value, int transaction_no){
         balance += value;
         System.out.printf("%s > trans   %-3d   +%d  %-20s  balance =  %-5d\n", Thread.currentThread().getName(), transaction_no, value,name, balance);
-        return balance;
     }
     synchronized public void removeFromStock (int value, int transaction_no){
         balance -= value;
@@ -31,6 +31,17 @@ class Product {
     }
     public String get_name(){
         return name;
+    }
+    public int get_amount(){
+        return balance;
+    }
+    public void print_buy_summary(String product_name, int product_amount){
+        int a = 0;
+        System.out.printf("%s > %-20s  buy = %5d  sales = %5d  balance = %5d\n",Thread.currentThread().getName(),product_name,product_amount,a,product_amount);
+    }
+    public void print_sell_summary(String product_name, int product_amount){
+        int a = 0;
+        System.out.printf("%s > %-20s  buy = %5d  sales = %5d  balance = %5d\n",Thread.currentThread().getName(),product_name,a,product_amount,product_amount);
     }
 }
 
@@ -66,7 +77,6 @@ class Transaction{
 }
 
 class VendorThread extends Thread{
-//    private Product product;
     Product allStocks[];
     ArrayList <Transaction> transactions = new ArrayList <> ();
     protected CyclicBarrier finish;
@@ -88,60 +98,56 @@ class VendorThread extends Thread{
     public void show_products(){
         for(int i=0; i<4; i++) allStocks[i].show_stock();
     }
-    public void buy_summary(int b){
-        int a = 0;
-        System.out.printf("%s > Buying complete\n",Thread.currentThread().getName());
-        for(int i=0; i<allStocks.length; i++){
-            System.out.printf("%s > %-20s  buy = %-6d  sales = %-6d  balance = %-6d\n",Thread.currentThread().getName(),transactions.get(i).getProduct_name(),transactions.get(i).getProduct_amount(),a,b);
-        }
-    }
     public void run(){
-
-        for(int i=0;i<transactions.size();i++) {
-            try {
-                if (transactions.get(i).getProduct_amount() > 0) {
-                   for(int j=0;j<allStocks.length;j++){
-                       //if same product as transaction
-                       if(transactions.get(i).same_product(allStocks[j].get_name())){
-                           allStocks[j].addToStock(transactions.get(i).getProduct_amount(),transactions.get(i).getTrans_id());
-                       }
-                   }
+        boolean doSum = true;
+        while(doSum) {
+            for (int i = 0; i < transactions.size(); i++) {
+                try {
+                    if (transactions.get(i).getProduct_amount() > 0) {
+                        for (int j = 0; j < allStocks.length; j++) {
+                            //if same product as transaction
+                            if (transactions.get(i).same_product(allStocks[j].get_name())) {
+                                allStocks[j].addToStock(transactions.get(i).getProduct_amount(), transactions.get(i).getTrans_id());
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    System.out.println(e);
                 }
-            } catch (Exception e) {
-                System.out.println(e);
             }
+            try {
+                finish.await();
+                sleep(15);
+            } // changed from Program 6.10
+            catch (InterruptedException | BrokenBarrierException e) {
+            }
+            doSum = false;
         }
-
-        try {
-            finish.await();
-            sleep(5);
-        } // changed from Program 6.10
-        catch (InterruptedException e) {
-            System.out.println("***** " + getName() + " is interrupted");
-        }
-        catch (BrokenBarrierException e) {
-            System.out.println("***** " + getName() + " is out of broken barrier");
-        }
-        System.out.println("***** " + getName() + " finishes");
-
-        //wait fo others
-        //for(int i=0; i<allStocks.length; i++)
-
+        //wait for others
         //check all tran that mount<0
-//        for(int i=0;i<transactions.size();i++) {
-//            try {
-//                if (transactions.get(i).getProduct_amount() < 0) {
-//                    for(int j=0;j<allStocks.length;j++){
-//                        //if same product as transaction
-//                        if(transactions.get(i).same_product(allStocks[j].get_name())){
-//                            allStocks[j].removeFromStock(transactions.get(i).getProduct_amount(),transactions.get(i).getTrans_id());
-//                        }
-//                    }
-//                }
-//            } catch (Exception e) {
-//                System.out.println(e);
-//            }
-//        }
+        while(!doSum) {
+            for (int i = 0; i < transactions.size(); i++) {
+                try {
+                    if (transactions.get(i).getProduct_amount() < 0) {
+                        for (int j = 0; j < allStocks.length; j++) {
+                            //if same product as transaction
+                            if (transactions.get(i).same_product(allStocks[j].get_name())) {
+                                allStocks[j].removeFromStock(transactions.get(i).getProduct_amount(), transactions.get(i).getTrans_id());
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    System.out.println(e);
+                }
+            }
+            try {
+                finish.await();
+                sleep(15);
+            } // changed from Program 6.10
+            catch (InterruptedException | BrokenBarrierException e) {
+            }
+            doSum = true;
+        }
     }
 }
 
@@ -209,6 +215,7 @@ public class StockSimulation {
         System.out.printf("%s > ------------------------------\n", Thread.currentThread().getName());
         System.out.printf("%s >      %S (%d)\n", Thread.currentThread().getName(), "Stock Simulation", SimTime);
         System.out.printf("%s > ------------------------------\n", Thread.currentThread().getName());
+
         System.out.println();
         for (int i = 0; i < 3; i++) {
             vendors[i].start();
@@ -216,21 +223,40 @@ public class StockSimulation {
 //            vendors[i].show_products();
         }
         try{
-
             br.await();//for main thread
-
         }
         catch(InterruptedException | BrokenBarrierException e){
 
         }
-        try {
-            for (int i = 0; i < 3; i++) {
-                vendors[i].join();
-            }
-        }
+        System.out.println();
+        System.out.printf("%s > Buying complete\n",Thread.currentThread().getName());
+        for(int i = 0; i<products.length;i++)
+            products[i].print_buy_summary(products[i].get_name(),products[i].get_amount());
 
-        catch (InterruptedException e) {
+        System.out.println();
+        for (int i = 0; i < 3; i++) {
+            vendors[i].start();
+//            vendors[i].show_transactions();
+//            vendors[i].show_products();
+        }
+        try{
+            br.await();//for main thread
+        }
+        catch(InterruptedException | BrokenBarrierException e){
 
         }
+        System.out.println();
+        System.out.printf("%s > Selling complete\n",Thread.currentThread().getName());
+        for(int i = 0; i<products.length;i++)
+            products[i].print_sell_summary(products[i].get_name(),products[i].get_amount());
+//        try {
+//            for (int i = 0; i < 3; i++) {
+//                vendors[i].join();
+//            }
+//        }
+//
+//        catch (InterruptedException e) {
+//
+//        }
     }
 }
