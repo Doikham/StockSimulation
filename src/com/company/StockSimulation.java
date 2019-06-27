@@ -23,7 +23,9 @@ class Product {
         System.out.printf("%s > trans   %-3d   +%d  %-20s  balance =  %-5d\n", Thread.currentThread().getName(), transaction_no, value,name, balance);
     }
     synchronized public void removeFromStock (int value, int transaction_no){
-        balance -= value;
+        if(balance<value)
+            balance = 0;
+        else balance += value;
         System.out.printf("%s > trans   %-3d   %d  %-20s  balance =  %-5d\n", Thread.currentThread().getName(), transaction_no, value,name, balance);
     }
     public void show_stock(){
@@ -157,7 +159,6 @@ public class StockSimulation {
 
         int SimTime = 1;
         int initial = 0;
-
         Product products[] = new Product[4];
         VendorThread vendors[] = new VendorThread[3];
         CyclicBarrier br = new CyclicBarrier(4);
@@ -230,15 +231,16 @@ public class StockSimulation {
         }
         System.out.println();
         System.out.printf("%s > Buying complete\n",Thread.currentThread().getName());
-        for(int i = 0; i<products.length;i++)
-            products[i].print_buy_summary(products[i].get_name(),products[i].get_amount());
-
-        System.out.println();
-        for (int i = 0; i < 3; i++) {
-            vendors[i].start();
-//            vendors[i].show_transactions();
-//            vendors[i].show_products();
+        for(int i = 0; i<products.length;i++) {
+            products[i].print_buy_summary(products[i].get_name(), products[i].get_amount());
         }
+        System.out.println();
+//        System.out.println();
+//        for (int i = 0; i < 3; i++) {
+//            vendors[i].start();
+////            vendors[i].show_transactions();
+////            vendors[i].show_products();
+//        }
         try{
             br.await();//for main thread
         }
@@ -247,8 +249,10 @@ public class StockSimulation {
         }
         System.out.println();
         System.out.printf("%s > Selling complete\n",Thread.currentThread().getName());
-        for(int i = 0; i<products.length;i++)
-            products[i].print_sell_summary(products[i].get_name(),products[i].get_amount());
+        for(int i = 0; i<products.length;i++) {
+            products[i].print_sell_summary(products[i].get_name(), products[i].get_amount());
+        }
+        System.out.println();
 //        try {
 //            for (int i = 0; i < 3; i++) {
 //                vendors[i].join();
