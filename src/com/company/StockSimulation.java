@@ -2,48 +2,54 @@ package com.company;
 
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.util.ArrayList;
-import java.util.Random;
-import java.util.Scanner;
+import java.util.*;
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CyclicBarrier;
 
-class Product {
+import static java.lang.Math.abs;
+
+class Product implements Comparable<Product> {
+    private int totalbuy = 0;
+    private int totalsales = 0;
     private String name;
     private int balance;
-    private int summary;
     public Product (String n){
         name = n;
-    }
-    public Product (int g){
-        balance = g;
     }
     synchronized public void addToStock(int value, int transaction_no){
         balance += value;
         System.out.printf("%s > trans   %-3d   +%d  %-20s  balance =  %-5d\n", Thread.currentThread().getName(), transaction_no, value,name, balance);
     }
     synchronized public void removeFromStock (int value, int transaction_no){
-        if(balance<value)
+        if(balance<abs(value)){
+            int balance_before_sell = balance;
             balance = 0;
-        else balance += value;
-        System.out.printf("%s > trans   %-3d   %d  %-20s  balance =  %-5d\n", Thread.currentThread().getName(), transaction_no, value,name, balance);
-    }
-    public void show_stock(){
-        System.out.printf("name: %-20s balance: %-8d\n",name,balance);
+            System.out.printf("%s > trans   %-3d   -%-3d  %-20s  balance =  %-5d\n", Thread.currentThread().getName(), transaction_no, balance_before_sell ,name, balance);
+        }
+        else {
+            balance += value;
+            System.out.printf("%s > trans   %-3d   %-3d  %-20s  balance =  %-5d\n", Thread.currentThread().getName(), transaction_no, value,name, balance);
+        }
     }
     public String get_name(){
         return name;
     }
-    public int get_amount(){
-        return balance;
+    public void print_buy_summary(){
+        totalbuy = balance;
+        System.out.printf("%s > %-20s  buy = %5d  sales = %5d  balance = %5d\n",Thread.currentThread().getName(),name,totalbuy,totalsales,totalbuy - totalsales);
     }
-    public void print_buy_summary(String product_name, int product_amount){
-        int a = 0;
-        System.out.printf("%s > %-20s  buy = %5d  sales = %5d  balance = %5d\n",Thread.currentThread().getName(),product_name,product_amount,a,product_amount);
+    public void print_sell_summary(){
+        totalsales = balance;
+        System.out.printf("%s > %-20s  buy = %5d  sales = %5d  balance = %5d\n",Thread.currentThread().getName(),name,totalbuy,totalbuy - totalsales,balance);
+        totalbuy = 0;
+        totalsales = 0;
+        balance = 0;
     }
-    public void print_sell_summary(String product_name, int product_amount){
-        int a = 0;
-        System.out.printf("%s > %-20s  buy = %5d  sales = %5d  balance = %5d\n",Thread.currentThread().getName(),product_name,a,product_amount,product_amount);
+    @Override
+    public int compareTo(Product o) {
+        if(this.balance<o.balance) return 1;
+        else if(this.balance>o.balance) return -1;
+        else return 0;
     }
 }
 
@@ -64,12 +70,6 @@ class Transaction{
             return false;
         }
     }
-    public void print_transaction(){
-        System.out.println(Thread.currentThread().getName()+trans_id+" "+product_name+" "+product_amount);
-    }
-    public String getProduct_name(){
-        return product_name;
-    }
     public int getTrans_id(){
         return trans_id;
     }
@@ -82,23 +82,13 @@ class VendorThread extends Thread{
     Product allStocks[];
     ArrayList <Transaction> transactions = new ArrayList <> ();
     protected CyclicBarrier finish;
-    //cyclic barrier from main (similar to other vendor)
     public VendorThread(String vendor_name, Product[] z, CyclicBarrier b){
         super(vendor_name);
-//        product = z;
         allStocks = z;
         finish = b;
     }
     public void add_transaction(Transaction new_trans){
         transactions.add(new_trans);
-    }
-    public void show_transactions(){
-        for(int i=0;i<transactions.size();i++){
-            transactions.get(i).print_transaction();
-        }
-    }
-    public void show_products(){
-        for(int i=0; i<4; i++) allStocks[i].show_stock();
     }
     public void run(){
         boolean doSum = true;
@@ -120,13 +110,10 @@ class VendorThread extends Thread{
             try {
                 finish.await();
                 sleep(15);
-            } // changed from Program 6.10
-            catch (InterruptedException | BrokenBarrierException e) {
             }
+            catch (InterruptedException | BrokenBarrierException e) { }
             doSum = false;
         }
-        //wait for others
-        //check all tran that mount<0
         while(!doSum) {
             for (int i = 0; i < transactions.size(); i++) {
                 try {
@@ -145,9 +132,8 @@ class VendorThread extends Thread{
             try {
                 finish.await();
                 sleep(15);
-            } // changed from Program 6.10
-            catch (InterruptedException | BrokenBarrierException e) {
             }
+            catch (InterruptedException | BrokenBarrierException e) { }
             doSum = true;
         }
     }
@@ -157,12 +143,14 @@ public class StockSimulation {
 
     public static void main(String[] args) {
 
+        boolean next_round = true;
         int SimTime = 1;
-        int initial = 0;
+        boolean another_run = true;
         Product products[] = new Product[4];
         VendorThread vendors[] = new VendorThread[3];
+        String file_vendors[] = new String[3];
         CyclicBarrier br = new CyclicBarrier(4);
-//        Product pr = new Product(initial);
+        Scanner scanRun = new Scanner(System.in);
         //read product file
         while(true){
             System.out.printf("%s > Enter product file = ", Thread.currentThread().getName());
@@ -182,85 +170,83 @@ public class StockSimulation {
             }
         }
         //read transaction file to each vendor
-        for(int i=0;i<3;i++){
-            //create vendor
-            vendors[i] = new VendorThread("v"+(i+1),products,br);
-            while(true){
-                System.out.printf("%s > Enter transaction file for vendor %d = ", Thread.currentThread().getName(),i+1);
-                Scanner in1 = new Scanner(System.in);
-                String file1 = in1.next();
-                try{
-                    //read each transaction
-                    Scanner scan = new Scanner(new File(file1));
-                    while(scan.hasNextLine()){
-                        String line = scan.nextLine();
-                        String [] buffer = line.split(",");
-                        try{
-                            int numTrans = Integer.parseInt(buffer[0].trim());
-                            String nm = buffer[1].trim();
-                            int value = Integer.parseInt(buffer[2].trim());
-                            vendors[i].add_transaction(new Transaction(numTrans,nm,value));
-                        }
-                        catch (RuntimeException e){
-                            System.out.println(e);
-                        }
+        while(another_run){
+            for(int i=0;i<3;i++){
+                //create vendor
+                vendors[i] = new VendorThread("v"+(i+1),products,br);
+                while(true){
+                    if(next_round) {
+                        System.out.printf("%s > Enter transaction file for vendor %d = ", Thread.currentThread().getName(), i + 1);
+                        Scanner in1 = new Scanner(System.in);
+                        file_vendors[i] = in1.next();
                     }
-                    break;
-                } catch (FileNotFoundException e) {
-                    System.out.println(e);
+                    try{
+                        //read each transaction
+                        Scanner scan = new Scanner(new File(file_vendors[i]));
+                        while(scan.hasNextLine()){
+                            String line = scan.nextLine();
+                            String [] buffer = line.split(",");
+                            try{
+                                int numTrans = Integer.parseInt(buffer[0].trim());
+                                String nm = buffer[1].trim();
+                                int value = Integer.parseInt(buffer[2].trim());
+                                vendors[i].add_transaction(new Transaction(numTrans,nm,value));
+                            }
+                            catch (RuntimeException e){
+                                System.out.println(e);
+                            }
+                        }
+                        break;
+                    } catch (FileNotFoundException e) {
+                        System.out.println(e);
+                    }
                 }
             }
-//           vendors[i].start();
-        }
-        System.out.println();
-        System.out.printf("%s > ------------------------------\n", Thread.currentThread().getName());
-        System.out.printf("%s >      %S (%d)\n", Thread.currentThread().getName(), "Stock Simulation", SimTime);
-        System.out.printf("%s > ------------------------------\n", Thread.currentThread().getName());
+            next_round = false;
+            System.out.println();
+            System.out.printf("%s > ------------------------------\n", Thread.currentThread().getName());
+            System.out.printf("%s >      %S (%d)\n", Thread.currentThread().getName(), "Stock Simulation", SimTime);
+            System.out.printf("%s > ------------------------------\n", Thread.currentThread().getName());
+            //Start run()
+            System.out.println();
+            for (int i = 0; i < 3; i++) {
+                vendors[i].start();
+            }
 
-        System.out.println();
-        for (int i = 0; i < 3; i++) {
-            vendors[i].start();
-//            vendors[i].show_transactions();
-//            vendors[i].show_products();
-        }
-        try{
-            br.await();//for main thread
-        }
-        catch(InterruptedException | BrokenBarrierException e){
+            try {
+                br.await();
+            } catch (InterruptedException | BrokenBarrierException e) { }
 
-        }
-        System.out.println();
-        System.out.printf("%s > Buying complete\n",Thread.currentThread().getName());
-        for(int i = 0; i<products.length;i++) {
-            products[i].print_buy_summary(products[i].get_name(), products[i].get_amount());
-        }
-        System.out.println();
-//        System.out.println();
-//        for (int i = 0; i < 3; i++) {
-//            vendors[i].start();
-////            vendors[i].show_transactions();
-////            vendors[i].show_products();
-//        }
-        try{
-            br.await();//for main thread
-        }
-        catch(InterruptedException | BrokenBarrierException e){
+            Arrays.sort(products);
 
+            System.out.println();
+            System.out.printf("%s > Buying completes\n", Thread.currentThread().getName());
+            for (int i = 0; i < products.length; i++) {
+                products[i].print_buy_summary();
+            }
+            System.out.println();
+
+            try {
+                br.await();
+            } catch (InterruptedException | BrokenBarrierException e) { }
+
+            Arrays.sort(products);
+
+            System.out.println();
+            System.out.printf("%s > Selling completes\n", Thread.currentThread().getName());
+            for (int i = 0; i < products.length; i++) {
+                products[i].print_sell_summary();
+            }
+            System.out.println();
+
+            System.out.printf("Run another simulation (y/n) ? ");
+            String run_again = scanRun.next().trim();
+            if(run_again.equals("y")||run_again.equals("Y")) {
+                SimTime++;
+                another_run = true;
+            } else if (run_again.equals("n")||run_again.equals("N")) {
+                break;
+            }
         }
-        System.out.println();
-        System.out.printf("%s > Selling complete\n",Thread.currentThread().getName());
-        for(int i = 0; i<products.length;i++) {
-            products[i].print_sell_summary(products[i].get_name(), products[i].get_amount());
-        }
-        System.out.println();
-//        try {
-//            for (int i = 0; i < 3; i++) {
-//                vendors[i].join();
-//            }
-//        }
-//
-//        catch (InterruptedException e) {
-//
-//        }
     }
 }
